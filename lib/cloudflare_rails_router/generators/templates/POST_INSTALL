@@ -1,0 +1,37 @@
+===============================================================================
+
+CloudflareRailsRouter has been successfully installed!
+
+Next steps:
+
+1. Configure your Cloudflare credentials in config/initializers/cloudflare_rails_router.rb
+   
+   You can use either:
+   - API Token (recommended): Set config.api_token
+   - API Key + Email: Set config.api_key and config.api_email
+
+2. Set your Zone ID:
+   - Find your Zone ID in the Cloudflare dashboard
+   - Set config.zone_id in the initializer
+
+3. Alternatively, you can use Rails credentials:
+   
+   rails credentials:edit
+   
+   Then add:
+   cloudflare:
+     api_token: your_token_here
+     zone_id: your_zone_id_here
+
+4. Verify your configuration:
+   
+   rails cloudflare:verify_config
+
+5. List your current routes:
+   
+   rails cloudflare:routes
+
+For more information, visit:
+https://github.com/kieranklaassen/cloudflare_rails_router
+
+===============================================================================
