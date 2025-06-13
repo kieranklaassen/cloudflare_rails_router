@@ -5,7 +5,8 @@
       "Bash(bundle install)",
       "Bash(ruby:*)",
       "Bash(git add:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(mv:*)"
     ],
     "deny": []
   }

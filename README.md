@@ -1,226 +1,164 @@
-# CloudflareRailsRouter
+# Cloudflare Rails Router
 
-A Rails gem that provides seamless integration with Cloudflare's API for managing routing rules, page rules, and worker routes directly from your Rails application.
+Same‑domain edge routing between a Rails app and any marketing stack.
 
-## Features
+[![Gem Version](https://badge.fury.io/rb/cloudflare_rails_router.svg)](https://rubygems.org/gems/cloudflare_rails_router) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-- Manage Cloudflare Worker Routes
-- Manage Cloudflare Page Rules
-- Easy configuration via Rails credentials or environment variables
-- Built-in retry logic for API calls
-- Comprehensive error handling
-- Rails generator for quick setup
+---
+
+## Why?
+
+- **One canonical domain** – visitors and crawlers only see `yourdomain.com`, boosting SEO and trust.
+- **First‑party cookies** – referral and attribution data remain intact; no third‑party domains.
+- **Zero redirects** – Cloudflare proxies directly; Core Web Vitals stay green.
+- **Marketing agility** – content teams can ship landing pages on Webflow, Framer, or static hosting without touching Rails.
+- **Edge decision** – cookie check happens at Cloudflare's POP; Rails isn't hit until needed.
+- **SEO control** – optionally serve _all_ search‑engine requests from the marketing origin even while users hit the app.
+
+---
 
 ## Installation
 
-Add this line to your application's Gemfile:
+Add to your **Gemfile**:
 
 ```ruby
-gem 'cloudflare_rails_router'
+gem "cloudflare_rails_router"
 ```
 
-And then execute:
+Then run:
 
 ```bash
 bundle install
 ```
 
-Run the installation generator:
+---
+
+## Quick Start
 
 ```bash
-rails generate cloudflare_rails_router:install
+rails g cloudflare_rails_router:router:install   # copies Worker + initializer
+wrangler deploy                                  # pushes Worker to Cloudflare
 ```
 
-## Configuration
-
-### Option 1: Using the Initializer
-
-Configure the gem in `config/initializers/cloudflare_rails_router.rb`:
-
-```ruby
-CloudflareRailsRouter.configure do |config|
-  # Use API Token (recommended)
-  config.api_token = ENV["CLOUDFLARE_API_TOKEN"]
-  
-  # OR use API Key + Email
-  # config.api_key = ENV["CLOUDFLARE_API_KEY"]
-  # config.api_email = ENV["CLOUDFLARE_API_EMAIL"]
-  
-  # Required
-  config.zone_id = ENV["CLOUDFLARE_ZONE_ID"]
-  
-  # Optional
-  config.account_id = ENV["CLOUDFLARE_ACCOUNT_ID"]
-  config.timeout = 30
-  config.open_timeout = 10
-  config.retry_count = 3
-  config.retry_delay = 1
-end
-```
-
-### Option 2: Using Rails Credentials
-
-Add to your Rails credentials:
-
-```yaml
-cloudflare:
-  api_token: your_token_here
-  zone_id: your_zone_id_here
-  account_id: your_account_id_here # optional
-```
-
-### Option 3: Environment Variables
-
-The gem automatically loads from these environment variables:
-- `CLOUDFLARE_API_TOKEN` (or `CLOUDFLARE_API_KEY` + `CLOUDFLARE_API_EMAIL`)
-- `CLOUDFLARE_ZONE_ID`
-- `CLOUDFLARE_ACCOUNT_ID` (optional)
+---
 
 ## Usage
 
-### Worker Routes
+### Redirect anonymous visitors to marketing
 
 ```ruby
-# List all routes
-routes = CloudflareRailsRouter.routes.list
-routes[:routes].each do |route|
-  puts "Pattern: #{route['pattern']}, Script: #{route['script']}"
+class ApplicationController < ActionController::Base
+  before_action :redirect_marketing! unless user_signed_in?
+
+  private
+
+  def redirect_marketing!
+    cloudflare_redirect_to(:marketing)
+  end
 end
-
-# Create a new route
-route = CloudflareRailsRouter.routes.create(
-  pattern: "https://example.com/api/*",
-  script: "api-worker"
-)
-
-# Get a specific route
-route = CloudflareRailsRouter.routes.get(route_id)
-
-# Update a route
-CloudflareRailsRouter.routes.update(
-  route_id,
-  pattern: "https://example.com/api/v2/*",
-  enabled: false
-)
-
-# Delete a route
-CloudflareRailsRouter.routes.delete(route_id)
-
-# Validate a pattern
-is_valid = CloudflareRailsRouter.routes.validate_pattern("https://example.com/*")
 ```
 
-### Page Rules
+`cloudflare_redirect_to` relies on `marketing_origin` from your initializer—no string arguments needed.
 
 ```ruby
-# List all page rules
-rules = CloudflareRailsRouter.page_rules.list
+# config/initializers/cloudflare_rails_router.rb
+CloudflareRailsRouter.configure do |c|
+  c.app_origin = "https://yourdomain.com"
+  c.marketing_origin = "https://marketing.framer.com"
 
-# Create a page rule
-rule = CloudflareRailsRouter.page_rules.create(
-  targets: "https://example.com/images/*",
-  actions: [
-    { id: "browser_cache_ttl", value: 14400 },
-    { id: "edge_cache_ttl", value: 7200 }
-  ],
-  priority: 1,
-  status: "active"
-)
-
-# Update a page rule
-CloudflareRailsRouter.page_rules.update(
-  rule_id,
-  actions: [{ id: "browser_cache_ttl", value: 86400 }]
-)
-
-# Delete a page rule
-CloudflareRailsRouter.page_rules.delete(rule_id)
-
-# Update priorities
-CloudflareRailsRouter.page_rules.update_priorities([
-  { id: "rule1", priority: 1 },
-  { id: "rule2", priority: 2 }
-])
+  c.cookie_ttl = 10.minutes
+  c.crawlers_to = :marketing
+end
 ```
 
-### Direct API Client
+### Clearing/Refreshing the flag
 
-For other Cloudflare API endpoints:
+The marketing cookie expires automatically after `cookie_ttl`. If you need to refresh it sooner you can add `?cm=1` to any URL on the Rails **app** origin. A cloudflare middleware will delete the cookie and continue the request normally (user ends up back in the app or redirected to marketing with any new cookies).
+
+## How it Works
+
+1. **Cloudflare Worker** - Runs on every request to your domain
+2. **Cookie Detection** - Checks for authentication and routing cookies
+3. **Smart Routing** - Routes to marketing or Rails based on:
+   - Login status (via `login_cookie_name`)
+   - Explicit routing cookie
+   - Search engine crawler detection
+4. **Seamless Experience** - No redirects, same domain throughout
+
+## Configuration Options
 
 ```ruby
-client = CloudflareRailsRouter.client
+CloudflareRailsRouter.configure do |config|
+  # Required: Your Rails app origin
+  config.app_origin = "https://yourdomain.com"
 
-# GET request
-response = client.get("/zones/#{zone_id}/dns_records")
+  # Required: Your marketing site origin
+  config.marketing_origin = "https://marketing.yourdomain.com"
 
-# POST request
-response = client.post("/zones/#{zone_id}/dns_records", {
-  type: "A",
-  name: "example.com",
-  content: "192.0.2.1"
-})
+  # Cookie name for routing decisions (default: "cf_routing")
+  config.cookie_name = "cf_routing"
 
-# PUT request
-response = client.put("/zones/#{zone_id}/dns_records/#{record_id}", {
-  content: "192.0.2.2"
-})
+  # Cookie TTL in seconds (default: 30 minutes)
+  config.cookie_ttl = 30 * 60
 
-# DELETE request
-response = client.delete("/zones/#{zone_id}/dns_records/#{record_id}")
+  # Cookie domain (e.g., ".yourdomain.com" for all subdomains)
+  config.cookie_domain = ".yourdomain.com"
+
+  # Login detection cookie name (default: "user_status")
+  config.login_cookie_name = "user_status"
+
+  # Login detection cookie value (default: "loggedin")
+  config.login_cookie_value = "loggedin"
+
+  # Where to send crawlers (default: :marketing)
+  config.crawlers_to = :marketing # or :app
+end
 ```
 
-### Using Different Zone IDs
+## Cloudflare Setup
 
-```ruby
-# Use a different zone ID than the configured default
-routes = CloudflareRailsRouter.routes(zone_id: "different-zone-id")
-page_rules = CloudflareRailsRouter.page_rules(zone_id: "different-zone-id")
-```
+1. **Install Wrangler** (Cloudflare's CLI):
 
-## Rake Tasks
+   ```bash
+   npm install -g wrangler
+   ```
+
+2. **Configure your Cloudflare account**:
+
+   ```bash
+   wrangler login
+   ```
+
+3. **Update wrangler.toml** with your zone details:
+
+   ```toml
+   name = "cloudflare-rails-router"
+   main = "cloudflare/worker.js"
+   compatibility_date = "2024-01-01"
+
+   [env.production]
+   routes = [
+     { pattern = "yourdomain.com/*", zone_name = "yourdomain.com" }
+   ]
+   ```
+
+4. **Deploy the Worker**:
+   ```bash
+   wrangler deploy
+   ```
+
+## Testing
+
+The gem includes RSpec tests for configuration and generator functionality:
 
 ```bash
-# Verify your configuration
-rake cloudflare:verify_config
-
-# List all routes
-rake cloudflare:routes
-
-# List all page rules
-rake cloudflare:page_rules
+bundle exec rspec
 ```
-
-## Error Handling
-
-The gem provides specific error types:
-
-```ruby
-begin
-  CloudflareRailsRouter.routes.create(pattern: "invalid-pattern")
-rescue CloudflareRailsRouter::ConfigurationError => e
-  # Handle configuration errors (missing credentials, zone_id, etc.)
-rescue CloudflareRailsRouter::ApiError => e
-  # Handle Cloudflare API errors
-  puts "Error: #{e.message}"
-  puts "Status: #{e.status_code}"
-  puts "Response: #{e.response_body}"
-rescue CloudflareRailsRouter::NetworkError => e
-  # Handle network-related errors
-end
-```
-
-## Development
-
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/kieranklaassen/cloudflare_rails_router. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/kieranklaassen/cloudflare_rails_router/blob/main/CODE_OF_CONDUCT.md).
+Bug reports and pull requests are welcome on GitHub at https://github.com/kieranklaassen/cloudflare_rails_router.
 
 ## License
 
 The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
-
-## Code of Conduct
-
-Everyone interacting in the CloudflareRailsRouter project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/kieranklaassen/cloudflare_rails_router/blob/main/CODE_OF_CONDUCT.md).

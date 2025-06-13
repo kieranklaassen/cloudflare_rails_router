@@ -8,8 +8,8 @@ Gem::Specification.new do |spec|
   spec.authors = ["Kieran Klaassen"]
   spec.email = ["kieranklaassen@gmail.com"]
 
-  spec.summary = "Rails integration for managing Cloudflare routing rules"
-  spec.description = "A Rails gem that provides seamless integration with Cloudflare's API for managing routing rules, page rules, and worker routes directly from your Rails application."
+  spec.summary = "Same-domain edge routing between Rails and marketing sites"
+  spec.description = "Route anonymous visitors to marketing pages and authenticated users to your Rails app, all on the same domain using Cloudflare Workers"
   spec.homepage = "https://github.com/kieranklaassen/cloudflare_rails_router"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.1.0"
@@ -35,12 +35,8 @@ Gem::Specification.new do |spec|
 
   # Runtime dependencies
   spec.add_dependency "rails", ">= 6.0"
-  spec.add_dependency "faraday", "~> 2.0"
-  spec.add_dependency "faraday-retry", "~> 2.0"
 
   # Development dependencies
-  spec.add_development_dependency "rspec-rails", "~> 6.0"
-  spec.add_development_dependency "webmock", "~> 3.0"
-  spec.add_development_dependency "factory_bot_rails", "~> 6.0"
-  spec.add_development_dependency "pry", "~> 0.14"
+  spec.add_development_dependency "rspec-rails"
+  spec.add_development_dependency "generator_spec"
 end

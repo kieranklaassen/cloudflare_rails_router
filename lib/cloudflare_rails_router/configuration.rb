@@ -2,33 +2,15 @@
 
 module CloudflareRailsRouter
   class Configuration
-    attr_accessor :api_token, :api_key, :api_email, :zone_id, :account_id,
-                  :timeout, :open_timeout, :retry_count, :retry_delay
+    attr_accessor :app_origin, :marketing_origin, :cookie_name, 
+                  :cookie_ttl, :cookie_domain, :crawlers_to,
+                  :login_cookie_name
 
     def initialize
-      @timeout = 30
-      @open_timeout = 10
-      @retry_count = 3
-      @retry_delay = 1
-    end
-
-    def credentials_configured?
-      !api_token.to_s.empty? || (!api_key.to_s.empty? && !api_email.to_s.empty?)
-    end
-
-    def auth_headers
-      if !api_token.to_s.empty?
-        { "Authorization" => "Bearer #{api_token}" }
-      elsif !api_key.to_s.empty? && !api_email.to_s.empty?
-        {
-          "X-Auth-Key" => api_key,
-          "X-Auth-Email" => api_email
-        }
-      else
-        raise ConfigurationError, "Cloudflare credentials not configured. Set either api_token or both api_key and api_email."
-      end
+      @cookie_name = "cf_routing"
+      @cookie_ttl = 30 * 60 # 30 minutes in seconds
+      @crawlers_to = :marketing
+      @login_cookie_name = "user_status"
     end
   end
-
-  class ConfigurationError < StandardError; end
 end
