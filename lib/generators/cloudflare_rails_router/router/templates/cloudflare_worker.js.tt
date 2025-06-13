@@ -14,9 +14,18 @@ async function handleRequest(request) {
   // Handle cm=1 parameter to clear cookies
   if (url.searchParams.get('cm') === '1') {
     url.searchParams.delete('cm');
-    const response = await fetch(url.toString(), request);
+    
+    // After clearing cookie, request goes to Rails app (default)
+    const targetUrl = new URL(url.pathname + url.search, APP_ORIGIN);
+    const modifiedRequest = new Request(targetUrl, {
+      method: request.method,
+      headers: request.headers,
+      body: request.body
+    });
+    
+    const response = await fetch(modifiedRequest);
     const newResponse = new Response(response.body, response);
-    newResponse.headers.append('Set-Cookie', `${ROUTING_COOKIE_NAME}=; Max-Age=0; Path=/`);
+    newResponse.headers.append('Set-Cookie', `${ROUTING_COOKIE_NAME}=; Max-Age=0; Path=/; Domain=.${new URL(APP_ORIGIN).hostname.split('.').slice(-2).join('.')}`);
     return newResponse;
   }
   

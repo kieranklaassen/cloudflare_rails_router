@@ -83,9 +83,16 @@ CloudflareRailsRouter.configure do |c|
 end
 ```
 
-### Clearing/Refreshing the flag
+### Clearing the Cookie
 
-The marketing cookie expires automatically after `cookie_ttl`. If you need to refresh it sooner you can add `?cm=1` to any URL on the Rails **app** origin. A cloudflare middleware will delete the cookie and continue the request normally (user ends up back in the app or redirected to marketing with any new cookies).
+Add `?cm=1` to any URL to clear the routing cookie and return to Rails app (the default state).
+
+Example: `https://yourdomain.com/dashboard?cm=1`
+
+This is useful for:
+- Testing the routing logic
+- Providing a "back to app" link from marketing pages
+- Debugging cookie issues
 
 ## How it Works
 
