@@ -31,14 +31,26 @@ Then run:
 bundle install
 ```
 
+### Requirements
+
+- Rails 6.0+
+- Cloudflare account with a configured domain
+- Node.js (for Wrangler CLI)
+
 ---
 
 ## Quick Start
 
 ```bash
-rails g cloudflare_rails_router:router:install   # copies Worker + initializer
-wrangler deploy                                  # pushes Worker to Cloudflare
+rails g cloudflare_rails_router:router:install   # Interactive setup wizard
+wrangler deploy                                  # Deploy to Cloudflare
 ```
+
+The generator will:
+- Auto-detect your Rails app domain
+- Ask for your marketing site URL  
+- Request your Cloudflare Account & Zone IDs
+- Generate all configuration files automatically
 
 ---
 
@@ -78,11 +90,11 @@ The marketing cookie expires automatically after `cookie_ttl`. If you need to re
 ## How it Works
 
 1. **Cloudflare Worker** - Runs on every request to your domain
-2. **Cookie Detection** - Checks for authentication and routing cookies
-3. **Smart Routing** - Routes to marketing or Rails based on:
-   - Login status (via `login_cookie_name`)
-   - Explicit routing cookie
-   - Search engine crawler detection
+2. **Dead Simple Logic**:
+   - Crawlers → Always marketing (for SEO)
+   - Cookie exists → Marketing site
+   - No cookie → Rails app (default)
+3. **You Control Everything** - Use `cloudflare_redirect_to(:marketing)` to set the cookie
 4. **Seamless Experience** - No redirects, same domain throughout
 
 ## Configuration Options
@@ -104,11 +116,8 @@ CloudflareRailsRouter.configure do |config|
   # Cookie domain (e.g., ".yourdomain.com" for all subdomains)
   config.cookie_domain = ".yourdomain.com"
 
-  # Login detection cookie name (default: "user_status")
-  config.login_cookie_name = "user_status"
-
-  # Login detection cookie value (default: "loggedin")
-  config.login_cookie_value = "loggedin"
+  # Routing cookie name (default: "cf_routing")
+  config.cookie_name = "cf_routing"
 
   # Where to send crawlers (default: :marketing)
   config.crawlers_to = :marketing # or :app
@@ -117,35 +126,53 @@ end
 
 ## Cloudflare Setup
 
-1. **Install Wrangler** (Cloudflare's CLI):
+### Prerequisites
 
-   ```bash
-   npm install -g wrangler
-   ```
+Install Wrangler (Cloudflare's CLI):
+```bash
+npm install -g wrangler
+```
 
-2. **Configure your Cloudflare account**:
+### Interactive Setup
 
-   ```bash
-   wrangler login
-   ```
+Run the generator for a guided setup:
+```bash
+rails g cloudflare_rails_router:router:install
+```
 
-3. **Update wrangler.toml** with your zone details:
+The wizard asks just 3 questions:
+1. Your marketing site URL (e.g., https://marketing.webflow.io)
+2. Your Cloudflare Account ID
+3. Your Cloudflare Zone ID
 
-   ```toml
-   name = "cloudflare-rails-router"
-   main = "cloudflare/worker.js"
-   compatibility_date = "2024-01-01"
+Everything else is auto-detected or uses smart defaults.
 
-   [env.production]
-   routes = [
-     { pattern = "yourdomain.com/*", zone_name = "yourdomain.com" }
-   ]
-   ```
+### Deploy
 
-4. **Deploy the Worker**:
-   ```bash
-   wrangler deploy
-   ```
+After setup, deploy your worker:
+```bash
+wrangler login    # First time only
+wrangler deploy   # Deploy to Cloudflare
+```
+
+### Manual Configuration
+
+If you prefer manual setup, the generator creates these files:
+
+**wrangler.toml**
+```toml
+name = "yourdomain-com-router"
+main = "cloudflare/worker.js"
+compatibility_date = "2024-01-01"
+account_id = "your-account-id"
+
+[env.production]
+zone_id = "your-zone-id"
+routes = [
+  { pattern = "yourdomain.com/*", zone_name = "yourdomain.com" },
+  { pattern = "www.yourdomain.com/*", zone_name = "yourdomain.com" }
+]
+```
 
 ## Testing
 

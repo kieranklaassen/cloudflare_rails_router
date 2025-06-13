@@ -1,8 +1,18 @@
-name = "cloudflare-rails-router"
+name = "<%= @worker_name %>"
 main = "cloudflare/worker.js"
 compatibility_date = "2024-01-01"
+account_id = "<%= @account_id %>"
 
-[env.production]
+[env.<%= @environment %>]
+zone_id = "<%= @zone_id %>"
 routes = [
-  { pattern = "yourdomain.com/*", zone_name = "yourdomain.com" }
+  { pattern = "<%= @app_domain %>/*", zone_name = "<%= @app_domain %>" },
+  { pattern = "www.<%= @app_domain %>/*", zone_name = "<%= @app_domain %>" }
 ]
+
+# Uncomment to add staging environment
+# [env.staging]
+# zone_id = "your-staging-zone-id"
+# routes = [
+#   { pattern = "staging.yourdomain.com/*", zone_name = "staging.yourdomain.com" }
+# ]

@@ -1,9 +1,6 @@
 const APP_ORIGIN = "<%= CloudflareRailsRouter.configuration.app_origin %>";
 const MARKETING_ORIGIN = "<%= CloudflareRailsRouter.configuration.marketing_origin %>";
-const LOGIN_COOKIE_NAME = "<%= CloudflareRailsRouter.configuration.login_cookie_name %>";
 const ROUTING_COOKIE_NAME = "<%= CloudflareRailsRouter.configuration.cookie_name %>";
-const COOKIE_TTL = <%= CloudflareRailsRouter.configuration.cookie_ttl %>;
-const CRAWLERS_TO = "<%= CloudflareRailsRouter.configuration.crawlers_to %>";
 
 addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request));
@@ -20,25 +17,21 @@ async function handleRequest(request) {
     const response = await fetch(url.toString(), request);
     const newResponse = new Response(response.body, response);
     newResponse.headers.append('Set-Cookie', `${ROUTING_COOKIE_NAME}=; Max-Age=0; Path=/`);
-    newResponse.headers.append('Set-Cookie', `${LOGIN_COOKIE_NAME}=; Max-Age=0; Path=/`);
     return newResponse;
   }
   
   // Determine target origin
-  let targetOrigin = MARKETING_ORIGIN;
+  let targetOrigin;
   
-  // Check if crawler
+  // Always send crawlers to marketing
   const isCrawler = /bot|crawler|spider|crawling/i.test(userAgent);
   if (isCrawler) {
-    targetOrigin = CRAWLERS_TO === 'app' ? APP_ORIGIN : MARKETING_ORIGIN;
-  } 
-  // Check if logged in (cookie exists with any value)
-  else if (cookies[LOGIN_COOKIE_NAME]) {
-    targetOrigin = APP_ORIGIN;
-  }
-  // Check routing cookie
-  else if (cookies[ROUTING_COOKIE_NAME] === 'app') {
-    targetOrigin = APP_ORIGIN;
+    targetOrigin = MARKETING_ORIGIN;
+  } else {
+    // Simple logic for regular users:
+    // If routing cookie exists -> go to marketing
+    // If no routing cookie -> go to Rails app
+    targetOrigin = cookies[ROUTING_COOKIE_NAME] ? MARKETING_ORIGIN : APP_ORIGIN;
   }
   
   // Proxy request to target origin
@@ -51,17 +44,8 @@ async function handleRequest(request) {
   
   const response = await fetch(modifiedRequest);
   
-  // Create new response to allow header modification
-  const newResponse = new Response(response.body, response);
-  
-  // Set routing cookie if switching to marketing
-  if (targetOrigin === MARKETING_ORIGIN && !cookies[ROUTING_COOKIE_NAME]) {
-    newResponse.headers.append('Set-Cookie', 
-      `${ROUTING_COOKIE_NAME}=marketing; Max-Age=${COOKIE_TTL}; Path=/; Secure; HttpOnly`
-    );
-  }
-  
-  return newResponse;
+  // Return response as-is
+  return response;
 }
 
 function parseCookies(cookieString) {

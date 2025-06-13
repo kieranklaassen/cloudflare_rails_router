@@ -7,25 +7,20 @@ module CloudflareRailsRouter
       
       case origin
       when :marketing
-        set_routing_cookie("marketing", config.cookie_ttl)
+        # Set the routing cookie to redirect to marketing
+        cookies[config.cookie_name] = {
+          value: "marketing",
+          expires: config.cookie_ttl.seconds.from_now,
+          domain: config.cookie_domain,
+          secure: Rails.env.production?,
+          httponly: true
+        }
         redirect_to root_url(host: URI.parse(config.marketing_origin).host)
       when :app
-        set_routing_cookie("app", config.cookie_ttl)
+        # Clear the routing cookie to go back to Rails (default)
+        cookies.delete(config.cookie_name, domain: config.cookie_domain)
         redirect_to root_url
       end
-    end
-
-    private
-
-    def set_routing_cookie(value, ttl)
-      config = CloudflareRailsRouter.configuration
-      cookies[config.cookie_name] = {
-        value: value,
-        expires: ttl.seconds.from_now,
-        domain: config.cookie_domain,
-        secure: Rails.env.production?,
-        httponly: true
-      }
     end
   end
 end

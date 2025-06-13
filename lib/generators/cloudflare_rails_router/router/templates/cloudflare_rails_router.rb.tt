@@ -1,20 +1,12 @@
 CloudflareRailsRouter.configure do |config|
   # Your Rails app origin
-  config.app_origin = "https://yourdomain.com"
+  config.app_origin = "<%= @app_origin %>"
   
   # Your marketing site origin (Webflow, Framer, etc)
-  config.marketing_origin = "https://marketing.yourdomain.com"
+  config.marketing_origin = "<%= @marketing_origin %>"
   
-  # Cookie settings
-  config.cookie_name = "cf_routing"
+  # Routing cookie settings
+  config.cookie_name = "<%= @cookie_name %>"
   config.cookie_ttl = 30 * 60 # 30 minutes
-  config.cookie_domain = ".yourdomain.com"
-  
-  # Login detection cookie (set by your auth system)
-  # If this cookie exists with ANY value, user goes to Rails app
-  # If this cookie doesn't exist, user goes to marketing
-  config.login_cookie_name = "user_status"
-  
-  # Where to send search engine crawlers
-  config.crawlers_to = :marketing # or :app
+  config.cookie_domain = "<%= @cookie_domain %>"
 end
